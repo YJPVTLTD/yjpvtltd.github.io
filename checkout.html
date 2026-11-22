@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pay SWARNIX · Stripe Checkout</title>
+<meta name="theme-color" content="#0a0b10">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<style>
+  :root {
+    --left-bg: #0c0d12;
+    --right-bg: #ffffff;
+    --gold: #e5b842;
+    --gold-bright: #ffd56b;
+    --stripe-blue: #635bff;
+    --stripe-blue-hover: #534be5;
+    --text-dark: #1a1f36;
+    --text-muted: #697386;
+    --border-light: #e3e8ee;
+    --border-dark: rgba(255, 255, 255, 0.12);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--left-bg);
+    min-height: 100vh;
+    display: flex;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .split-screen {
+    width: 100%;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
+  }
+
+  @media (max-width: 860px) {
+    .split-screen {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ------------------- LEFT COLUMN (DARK) ------------------- */
+  .left-col {
+    background: var(--left-bg);
+    padding: clamp(24px, 4vw, 56px) clamp(20px, 4vw, 64px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    border-right: 1px solid var(--border-dark);
+    position: relative;
+  }
+
+  .left-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .back-link {
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: none;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+  }
+  .back-link:hover { color: #fff; }
+
+  .brand-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 17px;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .pay-to {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.65);
+    margin-bottom: 8px;
+  }
+
+  .currency-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+
+  .currency-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .currency-pill {
+    flex: 1;
+    max-width: 180px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-dark);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
+  .currency-pill.active {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 1px #fff;
+  }
+
+  .currency-note {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 32px;
+  }
+
+  .product-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .product-desc {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.5;
+    margin-bottom: 24px;
+  }
+
+  /* "NEED INVOICE?" STATEMENT */
+  .need-invoice-card {
+    background: rgba(229, 184, 66, 0.08);
+    border: 1px solid rgba(229, 184, 66, 0.25);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-top: 10px;
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .need-invoice-card:hover {
+    background: rgba(229, 184, 66, 0.14);
+    border-color: var(--gold);
+  }
+
+  .need-invoice-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold-bright);
+  }
+
+  .need-invoice-trigger span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .need-invoice-trigger i {
+    font-style: normal;
+    font-size: 12px;
+    transition: transform 0.2s;
+  }
+
+  .invoice-preview-box {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(229, 184, 66, 0.25);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+
+  .invoice-table td {
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .invoice-table td:last-child {
+    text-align: right;
+    font-family: ui-monospace, monospace;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .invoice-table tr.total td {
+    font-weight: 700;
+    color: var(--gold);
+    border-bottom: none;
+    padding-top: 10px;
+    font-size: 14px;
+  }
+
+  /* ------------------- RIGHT COLUMN (WHITE) ------------------- */
+  .right-col {
+    background: var(--right-bg);
+    color: var(--text-dark);
+    padding: clamp(24px, 4vw, 56px) clamp(20px, 4vw, 64px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .right-inner {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .quick-pay-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .btn-quick {
+    flex: 1;
+    height: 48px;
+    border-radius: 6px;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-quick:hover { opacity: 0.92; }
+
+  .btn-apple {
+    background: #000000;
+    color: #ffffff;
+  }
+
+  .btn-link {
+    background: #00d66f;
+    color: #052e16;
+  }
+
+  .or-divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .or-divider::before, .or-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  .or-divider span { padding: 0 14px; }
+
+  .form-sec-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+  }
+
+  .form-control-wrap {
+    margin-bottom: 20px;
+  }
+
+  .stripe-input {
+    width: 100%;
+    height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 15px;
+    color: var(--text-dark);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+
+  .stripe-input:focus {
+    border-color: var(--stripe-blue);
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15);
+  }
+
+  /* Payment Method Radio Accordion */
+  .method-accordion {
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+
+  .method-option {
+    border-bottom: 1px solid var(--border-light);
+  }
+  .method-option:last-child { border-bottom: none; }
+
+  .method-head {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+  }
+
+  .method-head:hover { background: #fafbfc; }
+
+  .method-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+  }
+
+  .radio-circle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #cbd2d9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .method-option.selected .radio-circle {
+    border-color: var(--stripe-blue);
+  }
+
+  .method-option.selected .radio-circle::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--stripe-blue);
+  }
+
+  .method-badges {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .badge-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+    background: #f7f9fc;
+    color: #4f566b;
+  }
+
+  .method-body {
+    display: none;
+    padding: 16px;
+    background: #fcfdfe;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .method-option.selected .method-body { display: block; }
+
+  /* UPI Box inside Stripe */
+  .upi-inner-box {
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  .upi-qr-wrapper {
+    background: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    display: inline-block;
+    border: 1px solid var(--border-light);
+    margin-bottom: 10px;
+  }
+
+  .btn-upi-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    background: #000;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 8px;
+  }
+
+  /* Submit Button */
+  .btn-submit-pay {
+    width: 100%;
+    height: 48px;
+    background: var(--stripe-blue);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(99, 91, 255, 0.25);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .btn-submit-pay:hover {
+    background: var(--stripe-blue-hover);
+    box-shadow: 0 6px 16px rgba(99, 91, 255, 0.35);
+  }
+
+  .bottom-terms {
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  /* SUCCESS MODAL OVERLAY */
+  .invoice-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .invoice-modal {
+    background: #ffffff;
+    color: #1a1f36;
+    max-width: 620px;
+    width: 100%;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #697386;
+    cursor: pointer;
+  }
+
+  .inv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #e3e8ee;
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+  }
+
+  .inv-badge {
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #635bff;
+    letter-spacing: 0.08em;
+  }
+
+  .inv-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .inv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .inv-table th, .inv-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #e3e8ee;
+  }
+
+  .inv-table th { background: #f7f9fc; color: #4f566b; font-weight: 600; }
+  .inv-table td:last-child, .inv-table th:last-child { text-align: right; }
+
+  .inv-print-btn {
+    padding: 10px 20px;
+    background: #1a1f36;
+    color: #fff;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="split-screen">
+  <!-- LEFT COLUMN: DARK (FlowOS / Stripe Twin) -->
+  <aside class="left-col">
+    <div class="left-header">
+      <a href="index.html" class="back-link">←</a>
+      <a href="index.html" class="brand-tag">
+        <img src="assets/logo.svg" alt="SWARNIX" width="22" height="22">
+        <span>SWARNIX</span>
+      </a>
+    </div>
+
+    <p class="pay-to">Pay SWARNIX</p>
+
+    <div class="currency-title">Choose currency</div>
+    <div class="currency-selector">
+      <button type="button" class="currency-pill active" onclick="setCurrency('INR')">
+        <span>🇮🇳</span>
+        <span>₹4,999.00</span>
+      </button>
+      <button type="button" class="currency-pill" onclick="setCurrency('USD')">
+        <span>🇺🇸</span>
+        <span>$60.00</span>
+      </button>
+    </div>
+    <p class="currency-note" id="rateNote">1 USD = 83.31 INR · All inclusive price</p>
+
+    <div class="product-row">
+      <span>SWARNIX ERP Perpetual License</span>
+      <span id="priceDisplay">₹4,999.00</span>
+    </div>
+    <p class="product-desc">
+      Lifetime multi-counter jewelry billing, 0.001g weighing scale sync & BIS Hallmark GST invoicing. Download link and official product key arrive by email.
+    </p>
+
+    <!-- NEED INVOICE? STATEMENT & TOGGLE -->
+    <div class="need-invoice-card" onclick="toggleInvoiceBox()">
+      <div class="need-invoice-trigger">
+        <span>📄 Need an invoice? (GST Tax Invoice)</span>
+        <i id="invChevron">▼</i>
+      </div>
+      <div class="invoice-preview-box" id="invoicePreview">
+        <p style="margin-bottom: 6px; color: rgba(255,255,255,0.7);">
+          Official Indian GST Tax Invoice with input credit for jewelers:
+        </p>
+        <table class="invoice-table">
+          <tr>
+            <td>Swarnix ERP License (SAC 997331)</td>
+            <td>₹4,236.44</td>
+          </tr>
+          <tr>
+            <td>CGST (9.0% Central Tax)</td>
+            <td>₹381.28</td>
+          </tr>
+          <tr>
+            <td>SGST (9.0% State Tax)</td>
+            <td>₹381.28</td>
+          </tr>
+          <tr class="total">
+            <td>Total Invoice Amount</td>
+            <td>₹4,999.00</td>
+          </tr>
+        </table>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button type="button" onclick="event.stopPropagation(); openInvoiceModal();" style="background: var(--gold); color: #08090d; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer;">
+            View Full Printable Invoice
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT COLUMN: WHITE (Stripe Checkout Form) -->
+  <main class="right-col">
+    <div class="right-inner">
+      <!-- Quick Pay Express Buttons -->
+      <div class="quick-pay-row">
+        <button type="button" class="btn-quick btn-apple" onclick="submitStripePay()">
+          <span>Pay</span>
+        </button>
+        <button type="button" class="btn-quick btn-link" onclick="submitStripePay()">
+          <span>› link</span>
+        </button>
+      </div>
+
+      <div class="or-divider">
+        <span>OR</span>
+      </div>
+
+      <form id="stripeForm" onsubmit="event.preventDefault(); submitStripePay();">
+        <!-- Contact Info -->
+        <div class="form-sec-title">Contact information</div>
+        <div class="form-control-wrap">
+          <input type="email" id="buyerEmail" class="stripe-input" placeholder="you@example.com" required>
+        </div>
+
+        <!-- Payment Method Accordion -->
+        <div class="form-sec-title">Payment method</div>
+        <div class="method-accordion">
+          <!-- UPI -->
+          <div class="method-option selected" id="opt-upi" onclick="chooseMethod('upi')">
+            <div class="method-head">
+              <div class="method-left">
+                <div class="radio-circle"></div>
+                <span>UPI</span>
+              </div>
+              <div class="method-badges">
+                <span class="badge-tag">GPay</span>
+                <span class="badge-tag">PhonePe</span>
+                <span class="badge-tag">Paytm</span>
+              </div>
+            </div>
+            <div class="method-body">
+              <div class="upi-inner-box">
+                <div class="upi-qr-wrapper">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi%3A%2F%2Fpay%3Fpa%3Dswarnix%40upi%26pn%3DSwarnix%2520Technologies%26am%3D4999%26cu%3DINR%26tn%3DSwarnix%2520ERP%2520License" width="130" height="130" alt="UPI QR">
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">Scan with any UPI App or tap below on mobile:</p>
+                <a href="upi://pay?pa=swarnix@upi&pn=Swarnix%20Technologies&am=4999&cu=INR&tn=Swarnix%20ERP%20License" class="btn-upi-mobile">
+                  <span>📱 Open UPI App (₹4,999)</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card -->
+          <div class="method-option" id="opt-card" onclick="chooseMethod('card')">
+            <div class="method-head">
+              <div class="method-left">
+                <div class="radio-circle"></div>
+                <span>Card</span>
+              </div>
+              <div class="method-badges">
+                <span class="badge-tag">Visa</span>
+                <span class="badge-tag">MC</span>
+                <span class="badge-tag">RuPay</span>
+              </div>
+            </div>
+            <div class="method-body">
+              <div style="margin-bottom: 10px;">
+                <input type="text" class="stripe-input" placeholder="Card number" maxlength="19" oninput="fmtCard(this)">
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" class="stripe-input" placeholder="MM / YY" maxlength="7" oninput="fmtExp(this)">
+                <input type="password" class="stripe-input" placeholder="CVC" maxlength="4">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Billing details -->
+        <div class="form-sec-title">Billing details</div>
+        <div class="form-control-wrap" style="margin-bottom: 8px;">
+          <input type="text" id="buyerName" class="stripe-input" placeholder="Full name" required>
+        </div>
+        <div class="form-control-wrap" style="margin-bottom: 8px;">
+          <select class="stripe-input">
+            <option value="IN" selected>India</option>
+            <option value="US">United States</option>
+            <option value="AE">United Arab Emirates</option>
+            <option value="GB">United Kingdom</option>
+          </select>
+        </div>
+        <div class="form-control-wrap">
+          <input type="text" id="buyerAddress" class="stripe-input" placeholder="Showroom / Business Address">
+        </div>
+
+        <button type="submit" class="btn-submit-pay">
+          <span>Pay ₹4,999.00</span>
+        </button>
+
+        <p class="bottom-terms">
+          Swarnix ERP license key and instant download arrive by email immediately after payment. Full refund any time within 30 days.
+        </p>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- INVOICE MODAL -->
+<div class="invoice-modal-overlay" id="invoiceModal" onclick="closeInvoiceModal(event)">
+  <div class="invoice-modal" onclick="event.stopPropagation()">
+    <button type="button" class="modal-close" onclick="closeInvoiceModal()">×</button>
+    
+    <div class="inv-header">
+      <div>
+        <div class="inv-badge">Tax Invoice / Bill of Supply</div>
+        <h2 style="font-size: 22px; font-weight: 700; color: #1a1f36; margin-top: 4px;">Swarnix Technologies Pvt. Ltd.</h2>
+        <p style="font-size: 12px; color: #697386;">GSTIN: 24AABCS1429B1Z8 · State: Gujarat (24)</p>
+      </div>
+      <div style="text-align: right;">
+        <p style="font-size: 13px; font-weight: 700; color: #1a1f36;">Invoice #SWX-2026-9281</p>
+        <p style="font-size: 12px; color: #697386;" id="invDate">Date: 22 Nov 2026</p>
+      </div>
+    </div>
+
+    <div class="inv-grid">
+      <div>
+        <strong style="color: #4f566b; font-size: 11px; text-transform: uppercase;">Billed To (Customer):</strong>
+        <p style="font-weight: 600; font-size: 14px; margin-top: 2px;" id="invCustomerName">Valued Jewelry Showroom</p>
+        <p style="color: #697386;" id="invCustomerAddr">Showroom Address, India</p>
+      </div>
+      <div>
+        <strong style="color: #4f566b; font-size: 11px; text-transform: uppercase;">Product Edition:</strong>
+        <p style="font-weight: 600; font-size: 14px; margin-top: 2px;">SWARNIX ERP 2.2 Gold</p>
+        <p style="color: #697386;">License: Perpetual Store License</p>
+      </div>
+    </div>
+
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>HSN/SAC</th>
+          <th>Qty</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Swarnix ERP License (0.001g Weighing Scale Sync, Wholesale B2B, GST)</td>
+          <td>997331</td>
+          <td>1</td>
+          <td>₹4,236.44</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="text-align: right; color: #697386;">Central GST (CGST 9%):</td>
+          <td>₹381.28</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="text-align: right; color: #697386;">State GST (SGST 9%):</td>
+          <td>₹381.28</td>
+        </tr>
+        <tr style="font-weight: 700; font-size: 15px; color: #1a1f36; background: #fafbfc;">
+          <td colspan="3" style="text-align: right;">Total Amount Payable:</td>
+          <td style="color: #635bff;">₹4,999.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+      <small style="color: #697386; font-size: 11px;">This is a computer-generated tax invoice compliant with Indian GST rules.</small>
+      <button type="button" class="inv-print-btn" onclick="window.print()">Print / Save PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleInvoiceBox() {
+    const box = document.getElementById('invoicePreview');
+    const chv = document.getElementById('invChevron');
+    if (box.style.display === 'block') {
+      box.style.display = 'none';
+      chv.textContent = '▼';
+    } else {
+      box.style.display = 'block';
+      chv.textContent = '▲';
+    }
+  }
+
+  function openInvoiceModal() {
+    const name = document.getElementById('buyerName').value.trim() || 'Valued Jewelry Showroom';
+    const addr = document.getElementById('buyerAddress').value.trim() || 'Showroom Address, India';
+    document.getElementById('invCustomerName').textContent = name;
+    document.getElementById('invCustomerAddr').textContent = addr;
+    document.getElementById('invoiceModal').style.display = 'flex';
+  }
+
+  function closeInvoiceModal() {
+    document.getElementById('invoiceModal').style.display = 'none';
+  }
+
+  function chooseMethod(type) {
+    document.querySelectorAll('.method-option').forEach(o => o.classList.remove('selected'));
+    document.getElementById('opt-' + type).classList.add('selected');
+  }
+
+  function setCurrency(cur) {
+    document.querySelectorAll('.currency-pill').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    if (cur === 'USD') {
+      document.getElementById('priceDisplay').textContent = '$60.00';
+      document.getElementById('rateNote').textContent = '1 USD = 83.31 INR · Charged in USD';
+    } else {
+      document.getElementById('priceDisplay').textContent = '₹4,999.00';
+      document.getElementById('rateNote').textContent = '1 USD = 83.31 INR · All inclusive price';
+    }
+  }
+
+  function fmtCard(el) {
+    let v = el.value.replace(/\D/g, '').substring(0, 16);
+    let parts = [];
+    for (let i = 0; i < v.length; i += 4) { parts.push(v.substring(i, i + 4)); }
+    el.value = parts.join(' ');
+  }
+
+  function fmtExp(el) {
+    let v = el.value.replace(/\D/g, '').substring(0, 4);
+    if (v.length >= 2) el.value = v.substring(0, 2) + ' / ' + v.substring(2);
+    else el.value = v;
+  }
+
+  function submitStripePay() {
+    const email = document.getElementById('buyerEmail').value.trim();
+    const name = document.getElementById('buyerName').value.trim();
+    if (!email) {
+      alert('Please enter your email to receive your license key.');
+      document.getElementById('buyerEmail').focus();
+      return;
+    }
+    openInvoiceModal();
+  }
+</script>
+
+</body>
+</html>
